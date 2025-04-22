@@ -1,4 +1,4 @@
-use std::vec;
+use std::{io::empty, vec};
 
 fn main() {
 
@@ -6,11 +6,19 @@ fn main() {
 }
 
 pub fn annotate(minefield: &[&str]) -> Vec<String> {
+
     // Konvertiere das Minefield in ein Vec<Vec<u8>>.
     let input_minefield: Vec<Vec<u8>> = minefield
         .iter()
         .map(|s| s.as_bytes().to_vec())
         .collect();
+
+    if input_minefield.is_empty(){
+        let vec:Vec<String> = Vec::new();
+        return vec;
+    }
+
+    
 
     // Hier fügst du den Spacer hinzu. Achte darauf, dass du diese Funktion definierst, falls sie notwendig ist.
     let minefield_with_spacer = add_spacer_to_minefield(input_minefield);
@@ -63,7 +71,12 @@ pub fn calculate_mines_count(minefield: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
                 }
 
                 // Zahl als ASCII-Zeichen (b'0' + bomb_count)
-                field_with_mine_count[i][j] = b'0' + bomb_count;
+                if bomb_count != 0{
+                    field_with_mine_count[i][j] = b'0' + bomb_count;
+                }else {
+                    field_with_mine_count[i][j] = b' ';
+                }
+                
             }
         }
     }
@@ -127,8 +140,8 @@ mod tests {
         let expected = vec![
             "1*3*1".to_string(),
             "13*31".to_string(),
-            "02*20".to_string(),
-            "01110".to_string(),
+            " 2*2 ".to_string(),
+            " 111 ".to_string(),
         ];
 
         let result = annotate(&input);
@@ -166,9 +179,9 @@ mod tests {
         ];
 
         let expected = vec![
-        "00000".to_string(),
-        "00000".to_string(),
-        "00000".to_string(),
+        "     ".to_string(),
+        "     ".to_string(),
+        "     ".to_string(),
         ];
 
         let result = annotate(&input);
@@ -223,6 +236,14 @@ mod tests {
 
         let result = annotate(&input);
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn wrong_input(){
+        let input = &[];
+        let expected: &[&str] = &[];
+        let actual = annotate(input);
+        assert_eq!(actual, expected);
     }
 
 
