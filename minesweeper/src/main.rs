@@ -1,9 +1,25 @@
-use std::{io::empty, vec};
+//use std::{io::empty, vec};
 
-fn main() {
+use std::collections::HashSet;
+//use std::ffi::OsStr;
+//Zum lesen von Datein:
+//use std::env;
+use std::fs::{self, File};
+use std::io::{self, BufRead, BufReader};
+use std::path::Path;
 
+
+fn main() -> io::Result<()> {
+
+    //Durchlaufen der Test Files
+    let _test_result = run_tests();
+    Ok(())
     
 }
+
+/*
+    Funktionen für das Minesweeper
+*/
 
 pub fn annotate(minefield: &[&str]) -> Vec<String> {
 
@@ -13,21 +29,19 @@ pub fn annotate(minefield: &[&str]) -> Vec<String> {
         .map(|s| s.as_bytes().to_vec())
         .collect();
 
+    //Handeling, bei leeren Input
     if input_minefield.is_empty(){
         let vec:Vec<String> = Vec::new();
         return vec;
     }
 
-    
-
-    // Hier fügst du den Spacer hinzu. Achte darauf, dass du diese Funktion definierst, falls sie notwendig ist.
+    //Umrandung des Minenfeld hinzufügen
     let minefield_with_spacer = add_spacer_to_minefield(input_minefield);
 
-    //let x_len = minefield[0].len();
-    //let y_len = minefield.len();
-
+    //Minen Berechnen
     let output_minefield_with_spacer = calculate_mines_count(minefield_with_spacer);
-    // Falls du mit dem modifizierten Minefield etwas tun möchtest, hier ein Platzhalter:
+    
+    //Umrandung wieder entfernen:
     let output_minefield_without_spacer = remove_spacer_from_minefield(output_minefield_with_spacer);
 
     output_minefield_without_spacer
@@ -123,6 +137,100 @@ fn remove_spacer_from_minefield(minefield: Vec<Vec<u8>>) -> Vec<String> {
     }
     trimmed
 }
+
+/* 
+    Funktionen zum Testen aus Datein
+*/ 
+
+pub fn read_minefiel_from_file(file_path: &Path) -> io::Result<Vec<String>>{
+
+    let mut output_vec: Vec<String> = Vec::new();
+
+    let file = File::open(file_path)?;
+    let file_reader = BufReader::new(file);
+
+    for line in file_reader.lines() {
+        output_vec.push(line?);
+
+    }
+
+    Ok(output_vec)
+
+}  
+
+pub fn test_files(path: &Path) -> io::Result<Vec<String>> {
+    let mut file_names = HashSet::new();
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(stem) = path.file_stem() {
+                let stem_str = stem.to_string_lossy();
+
+                if stem_str != ".DS_Store" {
+                    file_names.insert(stem_str.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(file_names.into_iter().collect())
+}
+
+fn run_tests() -> io::Result<()> {
+    let test_dir_path = Path::new("system_test\\test_files");
+
+    // ? entpackt hier ein io::Result<Vec<String>>, wie du richtig erkannt hast
+    let test_files = test_files(test_dir_path)?;
+
+    for test in test_files {
+        // Original-Dateipfad mit ".mines"-Endung
+        let mines_path = test_dir_path.join(format!("{}.mines", test));
+        println!("Vorgabe: {:?}", mines_path);
+
+        let file_minefield = read_minefiel_from_file(&mines_path)?;
+
+        // Erwarteter Dateipfad mit ".expected"-Endung
+        let expected_path = test_dir_path.join(format!("{}.expected", test));
+        // println!("Erwartet: {:?}", expected_path);
+
+        let expected = read_minefiel_from_file(&expected_path)?;
+
+        assert_eq!(minefield_calculation(file_minefield), expected);
+    }
+
+    Ok(())
+}
+
+pub fn minefield_calculation(minefield: Vec<String>) -> Vec<String> {
+
+    // Konvertiere das Minefield in ein Vec<Vec<u8>>.
+    let input_minefield: Vec<Vec<u8>> = minefield
+        .iter()
+        .map(|s| s.as_bytes().to_vec())
+        .collect();
+
+    //Handeling, bei leeren Input
+    if input_minefield.is_empty(){
+        let vec:Vec<String> = Vec::new();
+        return vec;
+    }
+
+    //Umrandung des Minenfeld hinzufügen
+    let minefield_with_spacer = add_spacer_to_minefield(input_minefield);
+
+    //Minen Berechnen
+    let output_minefield_with_spacer = calculate_mines_count(minefield_with_spacer);
+    
+    //Umrandung wieder entfernen und fertiges Minefeld zurückgeben:
+    remove_spacer_from_minefield(output_minefield_with_spacer)
+}
+
+/*
+    Test Funktion für das reine Minesweeper
+*/
 
 #[cfg(test)]
 mod tests {
