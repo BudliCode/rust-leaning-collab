@@ -21,7 +21,7 @@ fn main() -> io::Result<()> {
     Funktionen für das Minesweeper
 */
 
-pub fn annotate(minefield: &[&str]) -> Vec<String> {
+fn annotate(minefield: &[&str]) -> Vec<String> {
 
     // Konvertiere das Minefield in ein Vec<Vec<u8>>.
     let input_minefield: Vec<Vec<u8>> = minefield
@@ -47,7 +47,7 @@ pub fn annotate(minefield: &[&str]) -> Vec<String> {
     output_minefield_without_spacer
 }
 
-pub fn calculate_mines_count(minefield: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+fn calculate_mines_count(minefield: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     let MINE: u8 = b'*';
     let NO_MINE: u8 = b' ';
     
@@ -98,7 +98,7 @@ pub fn calculate_mines_count(minefield: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     field_with_mine_count
 }
 
-pub fn add_spacer_to_minefield(minefield: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+fn add_spacer_to_minefield(minefield: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     let spacer_char: u8 = b'/'; // "/" als ASCII
     let padding = 1;
     let minefield_x_len = minefield.len();
@@ -142,7 +142,7 @@ fn remove_spacer_from_minefield(minefield: Vec<Vec<u8>>) -> Vec<String> {
     Funktionen zum Testen aus Datein
 */ 
 
-pub fn read_minefiel_from_file(file_path: &Path) -> io::Result<Vec<String>>{
+fn read_minefiel_from_file(file_path: &Path) -> io::Result<Vec<String>>{
 
     let mut output_vec: Vec<String> = Vec::new();
 
@@ -158,7 +158,7 @@ pub fn read_minefiel_from_file(file_path: &Path) -> io::Result<Vec<String>>{
 
 }  
 
-pub fn test_files(path: &Path) -> io::Result<Vec<String>> {
+fn test_files(path: &Path) -> io::Result<Vec<String>> {
     let mut file_names = HashSet::new();
 
     for entry in fs::read_dir(path)? {
@@ -188,7 +188,7 @@ fn run_tests() -> io::Result<()> {
     for test in test_files {
         // Original-Dateipfad mit ".mines"-Endung
         let mines_path = test_dir_path.join(format!("{}.mines", test));
-        println!("Vorgabe: {:?}", mines_path);
+        //println!("Vorgabe: {:?}", mines_path);
 
         let file_minefield = read_minefiel_from_file(&mines_path)?;
 
@@ -204,7 +204,7 @@ fn run_tests() -> io::Result<()> {
     Ok(())
 }
 
-pub fn minefield_calculation(minefield: Vec<String>) -> Vec<String> {
+fn minefield_calculation(minefield: Vec<String>) -> Vec<String> {
 
     // Konvertiere das Minefield in ein Vec<Vec<u8>>.
     let input_minefield: Vec<Vec<u8>> = minefield
