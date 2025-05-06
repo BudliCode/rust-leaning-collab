@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
-
 /*Option
     bedeutet, dass der Pointer auch leer sein kann, ähnlich wie ein nullptr in C, aber sicherer
 */
@@ -52,91 +51,129 @@ prev: Zeiger auf vorherige Node
     Pointer auf die vorherige Node nach links. Da Elemente getauscht werden können (siehe DLL_switch) WeakLink
 
 */
-struct Node<T>  {
-    item: T,
+struct Node<T> {
+    item: Option<T>,
     next: Link<T>,
     prev: WeakLink<T>,
 }
 
+impl<T> Node<T> {
+    fn new(item: Option<T>) -> Self {
+        Self {
+            item,
+            next: None,
+            prev: None,
+        }
+    }
+}
+
 //Struktur für den Kopf- und Endstueck:
-struct LinkedList<T> {
+struct DLList<T> {
     head: Link<T>,
     tail: Link<T>,
+    size: usize,
 }
 
-fn main() {
-    println!("Hello, world!");
+//einen type Link zu einem Type WeakLink umwandeln
+fn link_to_weak<T>(link: &Link<T>) -> WeakLink<T> {
+    link.as_ref().map(|rc| Rc::downgrade(rc))
 }
 
-impl<T> LinkedList<T>{
+fn get_next<T>(link: &Link<T>) -> Link<T> {
+    link.as_ref().unwrap().borrow_mut().next.clone()
+}
 
-    //Erstellen eine DLL mit leerem Head und Leerem Tail
+fn set_next<T>(link: &Link<T>, next: &Link<T>) {
+    link.as_ref().map(|node| {
+        node.borrow_mut().next = next.clone();
+    });
+}
+
+fn get_prev<T>(link: &Link<T>) -> WeakLink<T> {
+    link.as_ref().unwrap().borrow_mut().prev.clone()
+}
+
+fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
+    link.as_ref().map(|node| {
+        node.borrow_mut().prev = prev.clone();
+    });
+}
+
+fn get_element<T>(link: &Link<T>) -> Option<T>{
+    link.as_ref().unwrap().borrow_mut().item
+}
+
+impl<T: Ord> DLList<T> {
+    //Erstellen eine DLL mit Head und Tail
     fn new() -> Self {
-        Self { head: (None), tail: (None) }
+        let head_node = Some(Rc::new(RefCell::new(Node::new(None))));
+        let tail_node = Some(Rc::new(RefCell::new(Node::new(None))));
+        set_next(&head_node, &tail_node);
+        set_prev(&tail_node, &link_to_weak(&head_node));
+
+        Self {
+            head: head_node,
+            tail: tail_node,
+            size: 0,
+        }
     }
 
-    //Eine neue Node erstellen:
-    fn create_new_node(item_node: T, next_node: Link<T>, prev_node: WeakLink<T>) -> Link<T>{
-        
-        Some(Rc::new(RefCell::new(Node{
-            item: item_node,
-            next: next_node,
-            prev: prev_node,
-        })))   
+    fn remove(&mut self, wert: T, node: Link<T>) {
+        todo!("implementieren");
     }
 
-    //einen type Link zu einem Type WeakLink umwandeln
-    fn link_to_weak(link: &Link<T>) -> WeakLink<T> {
-        link.as_ref().map(|rc| Rc::downgrade(rc))
+    fn insert_before(&mut self, wert: T, node_after: Link<T>) {
+        let node_before = get_prev(&node_after);
+
+        let new_node = Some(Rc::new(RefCell::new(Node {
+            item: Some(wert),
+            next: node_after.clone(),
+            prev: node_before.clone(),
+        })));
+
+        set_prev(&node_after, &link_to_weak(&new_node));
+        set_next(&node_before.unwrap().upgrade(), &new_node);
     }
 
     //Funktion zum einfügen eines Elements am Ende (Rechts):
-    pub fn DLL_push(&mut self, wert: T) {
+    fn push_back(&mut self, wert: T) {
+        self.insert_before(wert, self.tail.clone());
+    }
 
-        //Erstes Element in die leere DLL:
-        if self.head.is_none() && self.tail.is_none(){
+    fn push_front(&mut self, wert: T) {
+        self.insert_before(wert, self.tail.clone().unwrap().borrow_mut().next.clone());
+    }
 
-            //Neue Node Element erstellen
-            let new_node = Rc::new(RefCell::new(Node{
-                item: wert,
-                next: None,
-                prev: None
-            }));
+    pub fn push(&mut self, wert: T) {
+        // checken ob liste leer -> push front
+        todo!("implementieren");
+        // checken ob größer als letzen element -> push back
+        todo!("implementieren");
+        // checken ob kleiner als erstes element -> push front
+        todo!("implementieren");
 
-            self.head = Some(new_node);
+        // über liste iterieren einfügen bei richtiger größe
+        let x = self.head.clone();
+        while let Some(x) = get_next(&x) {
+            if 
+            todo!("implementieren");
         }
-        //Zweites Element in die DLL einhängen:
-        else if let Some(ref mut act_head) = self.head {
-
-            //Neue Node Element erstellen
-            let new_node = Rc::new(RefCell::new(Node{
-                item: wert,
-                next: None,
-                prev: None,
-            }));
-            
-            new_node.borrow_mut().prev = Self::link_to_weak(act_head.clone());
-            act_head.borrow_mut().next = Some(new_node.clone());
-
-            self.tail = Some(new_node);
-        }
-        
-
-        
-        
-
     }
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
-    pub fn DLL_pop() {}
+    pub fn pop_back(&mut self) {
+        if self.size > 0 {}
+        todo!("implementieren");
+    }
 
-    //Tauscht ein gegebenen Wert mit einem Element an beliebiger Stelle. Gibt das gewechselte Element zurück
-    pub fn DLL_switch() {}
+    //Funktion zum entfernen des ersten Elements (Linkes Element):
+    pub fn pop_front(&mut self) {
+        if self.size > 0 {}
+        todo!("implementieren");
+    }
 
     //Gibt die Anzahl an Elementen im DLL zurück:
-    pub fn DLL_len() {}
-
-    fn iter_forward() {}
-
-    
+    pub fn len(&mut self) -> usize{
+        self.size
+    }
 }
