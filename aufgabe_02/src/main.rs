@@ -118,7 +118,7 @@ impl<T: Ord> DLList<T> {
         }
     }
 
-    fn remove(&mut self, node: Link<T>) {
+    fn remove(&mut self, node: &Link<T>) {
         let before = get_prev(&node);
         let after = get_next(&node);
 
@@ -167,15 +167,24 @@ impl<T: Ord> DLList<T> {
     }
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
-    pub fn pop_back(&mut self) {
-        if self.size > 0 {}
-        todo!("implementieren");
+    pub fn pop_back(&mut self) -> Option<T>{
+        if self.size > 0 {
+            let to_remove = get_prev(&self.tail).as_ref().unwrap().upgrade();
+            self.remove(&to_remove);
+            return get_element(&to_remove)
+        }
+        return None
     }
 
+
     //Funktion zum entfernen des ersten Elements (Linkes Element):
-    pub fn pop_front(&mut self) {
-        if self.size > 0 {}
-        todo!("implementieren");
+    pub fn pop_front(&mut self) -> Option<T>{
+        if self.size > 0 {
+            let to_remove = get_next(&self.head);
+            self.remove(&to_remove);
+            return get_element(&to_remove)
+        }
+        return None
     }
 
     //Gibt die Anzahl an Elementen im DLL zurück:
