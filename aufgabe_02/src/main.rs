@@ -152,18 +152,73 @@ impl<T: Ord> DLList<T> {
 
     pub fn push(&mut self, wert: T) {
         // checken ob liste leer -> push front
-        todo!("implementieren");
-        // checken ob größer als letzen element -> push back
-        todo!("implementieren");
-        // checken ob kleiner als erstes element -> push front
-        todo!("implementieren");
+        //todo!("implementieren");
 
-        // über liste iterieren einfügen bei richtiger größe
-        let x = self.head.clone();
-        while let Some(x) = get_next(&x) {
-            if 
-            todo!("implementieren");
+        if self.size == 0{
+            
+            /*
+            Wenn die Liste leer ist, wird ein Element links von dem Tail eingefügt.
+             */
+            self.push_back(wert);
+
+        } else {
+            
+            //Wert größer als letzter Eintrag
+            if Some(wert) > get_element(&get_prev(&self.tail).unwrap().upgrade()) {
+                self.push_back(wert);
+            }
+            //Wert kleiner als erster Eintrag
+            else if Some(wert) < get_element(&get_next(&self.head)){
+                self.push_front(wert);
+            }
+
+
+
+            //Liste iterieren und die passende Stelle finden:
+            let mut node_element: Link<T> = self.head.clone();
+
+            for i in 0..self.size{
+                
+                if i != 0{
+                    // checken ob größer als letzen element -> push back
+
+                    let prev_element = get_prev(&node_element);
+                    let prev_element_value = get_element(&prev_element.unwrap().upgrade());
+
+                    if Some(wert) > prev_element_value {
+                        //Wert vor dem nächsten Element einfügen:
+
+                    }
+
+
+                } else if i != self.size {
+                    let next_element = get_next(&node_element);
+                    let next_elementvalue = get_element(&next_element);
+                }
+                
+                //nächstes Element in der Liste auswählen (weiterzählen):
+                node_element = get_next(&node_element);
+            }
+
+
+
+            // über liste iterieren einfügen bei richtiger größe
+            let mut node_element: Link<T> = self.head.clone();
+            while Option::is_some(&node_element) {
+
+                let element_value = get_element(&node_element);
+            
+                if Some(wert) < element_value {
+
+                }
+
+                node_element = get_next(&node_element);
+            }
         }
+
+        
+
+        
     }
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
