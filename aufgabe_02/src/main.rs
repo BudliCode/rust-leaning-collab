@@ -100,7 +100,7 @@ fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
 }
 
 fn get_element<T>(link: &Link<T>) -> Option<T>{
-    link.as_ref().unwrap().borrow_mut().item
+    link.as_ref().unwrap().borrow_mut().item.take()
 }
 
 impl<T: Ord> DLList<T> {
