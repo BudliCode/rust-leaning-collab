@@ -118,8 +118,14 @@ impl<T: Ord> DLList<T> {
         }
     }
 
-    fn remove(&mut self, wert: T, node: Link<T>) {
-        todo!("implementieren");
+    fn remove(&mut self, node: Link<T>) {
+        let before = get_prev(&node);
+        let after = get_next(&node);
+
+        set_next(&before.as_ref().unwrap().upgrade(), &after);
+        set_prev(&after, &before);
+
+        self.size = self.size -1;
     }
 
     fn insert_before(&mut self, wert: T, node_after: Link<T>) {
