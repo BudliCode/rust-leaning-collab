@@ -154,72 +154,47 @@ impl<T: Ord> DLList<T> {
         // checken ob liste leer -> push front
         //todo!("implementieren");
 
-        if self.size == 0{
-            
-            /*
-            Wenn die Liste leer ist, wird ein Element links von dem Tail eingefügt.
-             */
-            self.push_back(wert);
-
-        } else {
-            
-            //Wert größer als letzter Eintrag
-            if Some(wert) > get_element(&get_prev(&self.tail).unwrap().upgrade()) {
-                self.push_back(wert);
-            }
-            //Wert kleiner als erster Eintrag
-            else if Some(wert) < get_element(&get_next(&self.head)){
-                self.push_front(wert);
-            }
-
-
-
-            //Liste iterieren und die passende Stelle finden:
-            let mut node_element: Link<T> = self.head.clone();
-
-            for i in 0..self.size{
-                
-                if i != 0{
-                    // checken ob größer als letzen element -> push back
-
-                    let prev_element = get_prev(&node_element);
-                    let prev_element_value = get_element(&prev_element.unwrap().upgrade());
-
-                    if Some(wert) > prev_element_value {
-                        //Wert vor dem nächsten Element einfügen:
-
-                    }
-
-
-                } else if i != self.size {
-                    let next_element = get_next(&node_element);
-                    let next_elementvalue = get_element(&next_element);
-                }
-                
-                //nächstes Element in der Liste auswählen (weiterzählen):
-                node_element = get_next(&node_element);
-            }
-
-
-
             // über liste iterieren einfügen bei richtiger größe
             let mut node_element: Link<T> = self.head.clone();
             while Option::is_some(&node_element) {
 
-                let element_value = get_element(&node_element);
-            
-                if Some(wert) < element_value {
-
+                match wert {
+                    Some(0) => self.push_back(wert),
+                    Some(n) if Some(n) < get_element(&node_element) => self.insert_before(wert, node_element),
+                    Some(n) if Some(n) > get_element(&node_element) => node_element = get_next(&node_element),
+                    None => print!("Error"),
+                    
                 }
 
-                node_element = get_next(&node_element);
+                //WEnn die Liste Leer ist, kann sein das er dann garnicht hier herkommt, wegen der while bedingung
+                if self.size == 0{
+
+                    //Wert hinten anhängen
+                    self.push_back(wert);
+                    break;
+
+                } else if Some(wert) > get_element(&get_prev(&self.tail).unwrap().upgrade()) {
+
+                    node_element = get_next(&node_element);
+                    
+                    
+                } else if Some(wert) < get_element(&get_next(&self.head)) {
+
+                    self.insert_before(wert, get_next(&node_element));
+                    break;
+
+                } else {
+                    node_element = get_next(&node_element);
+                }
+
+                
             }
         }
 
         
 
         
-    }
+    
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
     pub fn pop_back(&mut self) -> Option<T>{
@@ -230,7 +205,6 @@ impl<T: Ord> DLList<T> {
         }
         return None
     }
-
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
     pub fn pop_front(&mut self) -> Option<T>{
