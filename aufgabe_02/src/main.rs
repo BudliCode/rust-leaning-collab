@@ -52,13 +52,13 @@ prev: Zeiger auf vorherige Node
 
 */
 struct Node<T> {
-    item: Option<T>,
+    item: T,
     next: Link<T>,
     prev: WeakLink<T>,
 }
 
 impl<T> Node<T> {
-    fn new(item: Option<T>) -> Self {
+    fn new(item: T) -> Self {
         Self {
             item,
             next: None,
@@ -71,7 +71,6 @@ impl<T> Node<T> {
 struct DLList<T> {
     head: Link<T>,
     tail: Link<T>,
-    size: usize,
 }
 
 //einen type Link zu einem Type WeakLink umwandeln
@@ -99,22 +98,12 @@ fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
     });
 }
 
-fn get_element<T>(link: &Link<T>) -> Option<T>{
-    link.as_ref().unwrap().borrow_mut().item.take()
-}
-
 impl<T: Ord> DLList<T> {
     //Erstellen eine DLL mit Head und Tail
     fn new() -> Self {
-        let head_node = Some(Rc::new(RefCell::new(Node::new(None))));
-        let tail_node = Some(Rc::new(RefCell::new(Node::new(None))));
-        set_next(&head_node, &tail_node);
-        set_prev(&tail_node, &link_to_weak(&head_node));
-
         Self {
-            head: head_node,
-            tail: tail_node,
-            size: 0,
+            head: None,
+            tail: None,
         }
     }
 
@@ -124,12 +113,21 @@ impl<T: Ord> DLList<T> {
 
         set_next(&before.as_ref().unwrap().upgrade(), &after);
         set_prev(&after, &before);
-
-        self.size = self.size -1;
     }
 
     fn insert_before(&mut self, wert: T, node_after: Link<T>) {
         let node_before = get_prev(&node_after);
+    }
+
+    pub fn push(&mut self, wert: T) {
+        let mut node: Link<T> = self.head.clone();
+
+        while let Some(n) = node {
+            if n.as_ref().get_mut().item >= wert {
+                break;
+            }
+            node = get_next(&node);
+        }
 
         let new_node = Some(Rc::new(RefCell::new(Node {
             item: Some(wert),
@@ -141,83 +139,58 @@ impl<T: Ord> DLList<T> {
         set_next(&node_before.unwrap().upgrade(), &new_node);
     }
 
-    //Funktion zum einfügen eines Elements am Ende (Rechts):
-    fn push_back(&mut self, wert: T) {
-        self.insert_before(wert, self.tail.clone());
-    }
-
-    fn push_front(&mut self, wert: T) {
-        self.insert_before(wert, self.tail.clone().unwrap().borrow_mut().next.clone());
-    }
-
-    pub fn push(&mut self, wert: T) {
-        // checken ob liste leer -> push front
-        //todo!("implementieren");
-
-            // über liste iterieren einfügen bei richtiger größe
-            let mut node_element: Link<T> = self.head.clone();
-            while Option::is_some(&node_element) {
-
-                match wert {
-                    Some(0) => self.push_back(wert),
-                    Some(n) if Some(n) < get_element(&node_element) => self.insert_before(wert, node_element),
-                    Some(n) if Some(n) > get_element(&node_element) => node_element = get_next(&node_element),
-                    None => print!("Error"),
-                    
-                }
-
-                //WEnn die Liste Leer ist, kann sein das er dann garnicht hier herkommt, wegen der while bedingung
-                if self.size == 0{
-
-                    //Wert hinten anhängen
-                    self.push_back(wert);
-                    break;
-
-                } else if Some(wert) > get_element(&get_prev(&self.tail).unwrap().upgrade()) {
-
-                    node_element = get_next(&node_element);
-                    
-                    
-                } else if Some(wert) < get_element(&get_next(&self.head)) {
-
-                    self.insert_before(wert, get_next(&node_element));
-                    break;
-
-                } else {
-                    node_element = get_next(&node_element);
-                }
-
-                
-            }
-        }
-
-        
-
-        
-    
-
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
-    pub fn pop_back(&mut self) -> Option<T>{
+    pub fn pop_back(&mut self) -> Option<T> {
         if self.size > 0 {
             let to_remove = get_prev(&self.tail).as_ref().unwrap().upgrade();
             self.remove(&to_remove);
-            return get_element(&to_remove)
+            return get_element(&to_remove);
         }
-        return None
+        return None;
     }
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
-    pub fn pop_front(&mut self) -> Option<T>{
+    pub fn pop_front(&mut self) -> Option<T> {
         if self.size > 0 {
             let to_remove = get_next(&self.head);
             self.remove(&to_remove);
-            return get_element(&to_remove)
+            return get_element(&to_remove);
         }
-        return None
+        return None;
     }
 
-    //Gibt die Anzahl an Elementen im DLL zurück:
-    pub fn len(&mut self) -> usize{
-        self.size
+    pub fn to_vec(&self) -> Vec<T> {
+        let mut out_vec: Vec<T> = Vec::new();
+        let mut current = get_next(&self.head);
+
+        while let Some(curr_rc) = current {
+            if let Some(val) = peek_element(&Some(curr_rc.clone())) {
+                out_vec.push(val);
+            }
+            current = get_next(&Some(curr_rc));
+        }
+
+        out_vec
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::DLList;
+
+    #[test]
+    fn sorting_test() {
+        let mut list = DLList::new();
+
+        list.push(7);
+        list.push(18);
+        list.push(1);
+        list.push(0);
+        list.push(7);
+
+        let expt_out = vec![0, 1, 7, 7, 18];
+        print!("{:?}", list.to_vec());
+
+        assert_eq!(list.to_vec(), expt_out);
     }
 }
