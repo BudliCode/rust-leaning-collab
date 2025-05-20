@@ -28,8 +28,8 @@ RefCell<T> erlaubt es, Daten auch über einen Rc<RefCell<T>> zu verändern,
 obwohl Rc keine mutable Referenzen erlaubt.
 Weak-Zeiger müssen vorher mit .upgrade() in Rc umgewandelt werden, um Zugriff zu bekommen.
 */
-type Link<T> = Option<Rc<RefCell<Node<T>>>>;
-type WeakLink<T> = Option<Weak<RefCell<Node<T>>>>;
+type Link<T> = Rc<RefCell<Node<T>>>;
+type WeakLink<T> = Weak<RefCell<Node<T>>>;
 
 /*Datenstruktur für die Node:
 <T> bedeutet, dass die struct mit einem beliebigen Datentyp verwendet werden kann,
@@ -51,27 +51,50 @@ prev: Zeiger auf vorherige Node
     Pointer auf die vorherige Node nach links. Da Elemente getauscht werden können (siehe DLL_switch) WeakLink
 
 */
-struct Node<T> {
-    item: T,
+
+struct InnerNode<T> {
+    item: Rc<T>,
     next: Link<T>,
     prev: WeakLink<T>,
 }
 
+impl<T> InnerNode<T> {
+    fn set_next(&self, link: &Link<T>) {}
+}
+
+struct InnerHead<T> {
+    next: Option<Rc<RefCell<Node<T>>>>,
+}
+
+struct InnerTail<T> {
+    prev: Option<Rc<RefCell<Node<T>>>>,
+}
+
+enum Node<T> {
+    Head(Rc<InnerHead<T>>),
+    InnerNode(InnerNode<T>),
+    Tail(Weak<InnerTail<T>>),
+}
+
 impl<T> Node<T> {
-    fn new(item: T) -> Self {
-        Self {
-            item,
-            next: None,
-            prev: None,
+    fn get_next(&self) -> Option<Link<T>> {
+        match self {
+            Self::Head(head) => Some(head.next.clone()),
+            Self::InnerNode(innernode) => Some(innernode.next.clone()),
+            Self::Tail(tail) => None,
+        }
+    }
+
+    fn get_prev(&self) -> Option<WeakLink<T>> {
+        match self {
+            Self::Head(head) => None,
+            Self::InnerNode(innernode) => Some(innernode.prev.clone()),
+            Self::Tail(tail) => Some(tail.prev.clone()),
         }
     }
 }
 
 //Struktur für den Kopf- und Endstueck:
-struct DLList<T> {
-    head: Link<T>,
-    tail: Link<T>,
-}
 
 //einen type Link zu einem Type WeakLink umwandeln
 fn link_to_weak<T>(link: &Link<T>) -> WeakLink<T> {
@@ -98,12 +121,38 @@ fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
     });
 }
 
+struct DLList<T> {
+    head: Rc<RefCell<Node<T>>>,
+    tail: Rc<RefCell<Node<T>>>,
+}
+
 impl<T: Ord> DLList<T> {
     //Erstellen eine DLL mit Head und Tail
     fn new() -> Self {
+        let itailrc = Rc::new(InnerTail { prev: None });
+
+        let tail = Node::Tail(Rc::downgrade(&itailrc.clone()));
+        let final_tail = Rc::new(RefCell::new(tail));
+
+        let headrc = Rc::new(InnerHead {
+            next: Some(final_tail.clone()),
+        });
+        let head = Node::Head(headrc.clone());
+        let final_head = Rc::new(RefCell::new(head));
+
+        let final_head_clone = final_head.clone();
+        if let Node::Head(mut head_node) = final_head_clone.as_ref().borrow_mut() {
+            if let Some(i) = &head_node.next {
+                if let Node::Tail(mut tail) = i.as_ref().borrow_mut() {
+                    let x = tail.upgrade().unwrap();
+                    x.as_ref().prev.replace(final_head.clone());
+                }
+            }
+        }
+
         Self {
-            head: None,
-            tail: None,
+            head: final_head.clone(),
+            tail: final_tail.clone(),
         }
     }
 
@@ -128,6 +177,8 @@ impl<T: Ord> DLList<T> {
             }
             node = get_next(&node);
         }
+
+        let node_before = get_prev(&node);
 
         let new_node = Some(Rc::new(RefCell::new(Node {
             item: Some(wert),
