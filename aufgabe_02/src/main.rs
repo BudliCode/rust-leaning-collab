@@ -52,54 +52,23 @@ prev: Zeiger auf vorherige Node
 
 */
 
-struct InnerNode<T> {
-    item: Rc<T>,
-    next: Link<T>,
-    prev: WeakLink<T>,
-}
-
-impl<T> InnerNode<T> {
-    fn set_next(&self, link: &Link<T>) {}
-}
-
-struct InnerHead<T> {
-    next: Option<Rc<RefCell<Node<T>>>>,
-}
-
-struct InnerTail<T> {
-    prev: Option<Rc<RefCell<Node<T>>>>,
-}
-
-enum Node<T> {
-    Head(Rc<InnerHead<T>>),
-    InnerNode(InnerNode<T>),
-    Tail(Weak<InnerTail<T>>),
+struct Node<T> {
+    item: T,
+    next: Option<Link<T>>,
+    prev: Option<WeakLink<T>>,
 }
 
 impl<T> Node<T> {
-    fn get_next(&self) -> Option<Link<T>> {
-        match self {
-            Self::Head(head) => Some(head.next.clone()),
-            Self::InnerNode(innernode) => Some(innernode.next.clone()),
-            Self::Tail(tail) => None,
-        }
-    }
-
-    fn get_prev(&self) -> Option<WeakLink<T>> {
-        match self {
-            Self::Head(head) => None,
-            Self::InnerNode(innernode) => Some(innernode.prev.clone()),
-            Self::Tail(tail) => Some(tail.prev.clone()),
+    fn new(item: T) -> Self {
+        Self {
+            item,
+            next: None,
+            prev: None,
         }
     }
 }
 
 //Struktur für den Kopf- und Endstueck:
-
-//einen type Link zu einem Type WeakLink umwandeln
-fn link_to_weak<T>(link: &Link<T>) -> WeakLink<T> {
-    link.as_ref().map(|rc| Rc::downgrade(rc))
-}
 
 fn get_next<T>(link: &Link<T>) -> Link<T> {
     link.as_ref().unwrap().borrow_mut().next.clone()
@@ -122,37 +91,16 @@ fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
 }
 
 struct DLList<T> {
-    head: Rc<RefCell<Node<T>>>,
-    tail: Rc<RefCell<Node<T>>>,
+    head: Option<Node<T>>,
+    tail: Option<Node<T>>,
 }
 
 impl<T: Ord> DLList<T> {
     //Erstellen eine DLL mit Head und Tail
     fn new() -> Self {
-        let itailrc = Rc::new(InnerTail { prev: None });
-
-        let tail = Node::Tail(Rc::downgrade(&itailrc.clone()));
-        let final_tail = Rc::new(RefCell::new(tail));
-
-        let headrc = Rc::new(InnerHead {
-            next: Some(final_tail.clone()),
-        });
-        let head = Node::Head(headrc.clone());
-        let final_head = Rc::new(RefCell::new(head));
-
-        let final_head_clone = final_head.clone();
-        if let Node::Head(mut head_node) = final_head_clone.as_ref().borrow_mut() {
-            if let Some(i) = &head_node.next {
-                if let Node::Tail(mut tail) = i.as_ref().borrow_mut() {
-                    let x = tail.upgrade().unwrap();
-                    x.as_ref().prev.replace(final_head.clone());
-                }
-            }
-        }
-
         Self {
-            head: final_head.clone(),
-            tail: final_tail.clone(),
+            head: None,
+            tail: None,
         }
     }
 
@@ -169,6 +117,8 @@ impl<T: Ord> DLList<T> {
     }
 
     pub fn push(&mut self, wert: T) {
+        let new_node = Node::new(wert);
+
         let mut node: Link<T> = self.head.clone();
 
         while let Some(n) = node {
@@ -190,20 +140,20 @@ impl<T: Ord> DLList<T> {
         set_next(&node_before.unwrap().upgrade(), &new_node);
     }
 
-    //Funktion zum entfernen des letzten Elements (Rechtes Element):
-    pub fn pop_back(&mut self) -> Option<T> {
+    //Funktion zum entfernen des ersten Elements (Linkes Element):
+    pub fn pop_front(&mut self) -> Option<T> {
         if self.size > 0 {
-            let to_remove = get_prev(&self.tail).as_ref().unwrap().upgrade();
+            let to_remove = get_next(&self.head);
             self.remove(&to_remove);
             return get_element(&to_remove);
         }
         return None;
     }
 
-    //Funktion zum entfernen des ersten Elements (Linkes Element):
-    pub fn pop_front(&mut self) -> Option<T> {
+    //Funktion zum entfernen des letzten Elements (Rechtes Element):
+    pub fn pop_back(&mut self) -> Option<T> {
         if self.size > 0 {
-            let to_remove = get_next(&self.head);
+            let to_remove = get_prev(&self.tail).as_ref().unwrap().upgrade();
             self.remove(&to_remove);
             return get_element(&to_remove);
         }
