@@ -93,7 +93,7 @@ struct DLList<T> {
 
 impl<T: Ord> DLList<T> {
     //Erstellen eine DLL mit Head und Tail
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             head: None,
             tail: None,
@@ -133,7 +133,7 @@ impl<T: Ord> DLList<T> {
                             // am Ende einfügen
                             Some(tail_node) => {
                                 set_next(&tail_node, new_node_opt);
-                                set_prev(&new_node, self.tail)
+                                set_prev(&new_node, self.tail);
                                 self.tail = new_node_opt;
                             }
                         };
@@ -214,15 +214,15 @@ impl<T: Ord> DLList<T> {
         })
     }
 
-    pub fn to_vec(&self) -> Vec<T> {
+    pub fn to_vec(&mut self) -> Vec<T> {
         let mut out_vec: Vec<T> = Vec::new();
-        let mut current = self.head;
+        let mut current = self.head.clone();
 
         while let Some(curr_rc) = current {
             if let Some(val) = self.pop_front() {
                 out_vec.push(val);
             }
-            current = Some(get_next(&Some(curr_rc)));
+            current = get_next(&curr_rc);
         }
 
         out_vec
@@ -238,7 +238,7 @@ impl<T: Ord> DLList<T> {
                 return true;
             }
 
-            current = Some(get_next(curr));
+            current = get_next(&curr);
 
         }
 
@@ -250,3 +250,80 @@ pub fn main(){
 
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn sort_test() {
+        let mut dll = DLList::<i32>::new();
+        
+        let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
+        
+        for ele in value_vec {
+            dll.push(ele);
+        }
+
+        let exp_vec = vec![0,1,6,8,17,35,888];
+
+
+        assert_eq!(dll.to_vec(), exp_vec);
+        
+
+    }
+
+    #[test]
+    fn empty_list_function_test() {
+        let mut dll = DLList::<i32>::new();
+        
+        assert_eq!(dll.to_vec(), vec![]);
+        assert_eq!(dll.pop_back(), None);
+        assert_eq!(dll.pop_front(), None);
+    }
+
+    #[test]
+    fn pop_front_pop_back() {
+        let mut dll = DLList::<i32>::new();
+
+        let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
+        
+        for ele in value_vec {
+            dll.push(ele);
+        }
+        
+        assert_eq!(dll.pop_front(), Some(0));
+        assert_eq!(dll.pop_back(), Some(888));
+    }
+
+    #[test]
+    fn contains() {
+        let mut dll = DLList::<i32>::new();
+
+        //Test bei Leerer Liste
+        assert_eq!(dll.contains(&18), false);
+
+        let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
+        
+        for ele in value_vec {
+            dll.push(ele);
+        }
+        
+        //Test bei voller Liste
+        assert_eq!(dll.contains(&17), true);
+        assert_eq!(dll.contains(&18), false);
+    }
+
+    #[test]
+    fn stress_test() {
+        let mut dll = DLList::<i32>::new();
+        
+        //Liste mit Werten füllen        
+        for ele in 0..1000 {
+            dll.push(ele);
+        }
+        
+        let expected: Vec<_> = (0..1000).collect();
+        assert_eq!(dll.to_vec(), expected);
+    }
+
+}
