@@ -322,4 +322,3 @@ mod tests {
         assert_eq!(dll.to_vec(), expected);
     }
 }
-pub fn main() {}
