@@ -70,25 +70,20 @@ impl<T> Node<T> {
 
 //Struktur für den Kopf- und Endstueck:
 
-//wird gemacht:
-fn get_next<T>(link: &Link<T>) -> Link<T> {
-    link.as_ref().unwrap().borrow_mut().next.clone()
+fn get_next<T>(link: &Link<T>) -> Option<Link<T>> {
+    link.as_ref().borrow_mut().next.clone()
 }
 
-fn set_next<T>(link: &Link<T>, next: &Link<T>) {
-    link.as_ref().map(|node| {
-        node.borrow_mut().next = next.clone();
-    });
+fn set_next<T>(link: &Link<T>, next: Option<Link<T>>) {
+    link.as_ref().borrow_mut().next = next;
 }
 
-fn get_prev<T>(link: &Link<T>) -> WeakLink<T> {
-    link.as_ref().unwrap().borrow_mut().prev.clone()
+fn get_prev<T>(link: &Link<T>) -> Option<WeakLink<T>> {
+    link.as_ref().borrow_mut().prev.clone()
 }
 
-fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
-    link.as_ref().map(|node| {
-        node.borrow_mut().prev = prev.clone();
-    });
+fn set_prev<T>(link: &Link<T>, prev: Option<WeakLink<T>>) {
+    link.as_ref().borrow_mut().prev = prev;
 }
 
 struct DLList<T> {
@@ -105,36 +100,61 @@ impl<T: Ord> DLList<T> {
         }
     }
 
-    fn remove(&mut self, node: &Link<T>) {
-        let before = get_prev(&node);
-        let after = get_next(&node);
-
-        set_next(&before.as_ref().unwrap().upgrade(), &after);
-        set_prev(&after, &before);
-    }
-
-    fn insert_before(&mut self, wert: T, node_after: Link<T>) {
-        let node_before = get_prev(&node_after);
-    }
-
-    //wir gemacht
     pub fn push(&mut self, wert: T) {
-        let new_node = Node::new(wert);
-
-        let mut node = self.head.clone();
+        let node = self.head.clone();
 
         while let Some(n) = node {
-            
-            //if n.as_ref().get_mut().item >= wert {
-            //    break;
-            //}
-
-            if n.as_ref().item >= wert {
+            if n.as_ref().borrow().item >= wert {
                 break;
             }
-
-            node = get_next(&node);
+            node = get_next(&n);
         }
+
+        let new_node = Rc::new(RefCell::new(Node::new(wert)));
+        let new_node_opt = Some(new_node);
+
+        //Node is None -> am ende einfügen
+
+        match node {
+            None => {
+                match self.head {
+                    // Liste ist Leer
+                    None => {
+                        self.head = new_node_opt;
+                    }
+                    Some(head_node) => {
+                        match self.tail {
+                            // Liste länge 1
+                            None => {
+                                self.tail = new_node_opt;
+                                set_next(&head_node, self.tail);
+                                set_prev(&new_node, Some(Rc::downgrade(&head_node)));
+                            }
+                            // am Ende einfügen
+                            Some(tail_node) => {
+                                set_next(&tail_node, new_node_opt);
+                                set_prev(&new_node, self.tail)
+                                self.tail = new_node_opt;
+                            }
+                        };
+                    }
+                };
+            }
+            Some(x) => {}
+        }
+
+        if node.is_none() {
+            if self.tail.is_none() {
+                self.tail = new_node;
+                self.head = new_node;
+            } else {
+                set_next(self.tail.un, new_node);
+                set_prev(&new_node, &self.tail);
+            }
+        }
+        //Tail ist None -> Liste leer Tail und Head eintragen
+
+        //sonst insert before
 
         let node_before = get_prev(&node);
         let node_after =  get_next(&node);
