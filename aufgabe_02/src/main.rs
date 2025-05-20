@@ -70,6 +70,13 @@ impl<T> Node<T> {
 
 //Struktur für den Kopf- und Endstueck:
 
+fn to_weak<T>(node: &Option<Link<T>>) -> Option<WeakLink<T>> {
+    match node {
+        Some(link) => Some(Rc::downgrade(&link)),
+        None => None,
+    }
+}
+
 fn get_next<T>(link: &Link<T>) -> Option<Link<T>> {
     link.as_ref().borrow_mut().next.clone()
 }
@@ -101,79 +108,76 @@ impl<T: Ord> DLList<T> {
     }
 
     pub fn push(&mut self, wert: T) {
-        let node = self.head.clone();
+        let mut node = self.head.clone();
 
-        while let Some(n) = node {
+        while let Some(ref n) = node {
             if n.as_ref().borrow().item >= wert {
                 break;
             }
-            node = get_next(&n);
+            node = get_next(n);
         }
 
         let new_node = Rc::new(RefCell::new(Node::new(wert)));
-        let new_node_opt = Some(new_node);
+        let new_node_opt = Some(new_node.clone());
 
         //Node is None -> am ende einfügen
 
-        match node {
+        match node.clone() {
             None => {
-                match self.head {
+                match self.head.clone() {
                     // Liste ist Leer
                     None => {
                         self.head = new_node_opt;
                     }
                     Some(head_node) => {
-                        match self.tail {
+                        match self.tail.clone() {
                             // Liste länge 1
                             None => {
                                 self.tail = new_node_opt;
-                                set_next(&head_node, self.tail);
+                                set_next(&head_node, self.tail.clone());
                                 set_prev(&new_node, Some(Rc::downgrade(&head_node)));
                             }
                             // am Ende einfügen
                             Some(tail_node) => {
-                                set_next(&tail_node, new_node_opt);
-                                set_prev(&new_node, self.tail);
-                                self.tail = new_node_opt;
+                                set_next(&tail_node, new_node_opt.clone());
+                                set_prev(&new_node, to_weak(&self.tail));
+                                self.tail = new_node_opt.clone();
                             }
                         };
                     }
                 };
             }
-            Some(x) => {}
-        }
+            Some(node_after) => {
+                match get_prev(&node_after).clone() {
+                    //Insert at beginning
+                    None => {
+                        set_prev(&node_after, to_weak(&new_node_opt.clone()));
+                        set_next(&new_node, Some(node_after.clone()));
+                        self.head = new_node_opt.clone();
+                    }
 
-        if node.is_none() {
-            if self.tail.is_none() {
-                self.tail = new_node;
-                self.head = new_node;
-            } else {
-                set_next(self.tail.un, new_node);
-                set_prev(&new_node, &self.tail);
+                    //Insert between two nodes
+                    Some(weak_node_before) => {
+                        let node_before = weak_node_before.upgrade().unwrap();
+                        set_prev(&node_after, to_weak(&new_node_opt.clone()));
+                        set_next(&node_before, new_node_opt.clone());
+
+                        set_prev(&new_node.clone(), Some(weak_node_before.clone()));
+                        set_next(&new_node.clone(), node.clone());
+                    }
+                };
             }
         }
-        //Tail ist None -> Liste leer Tail und Head eintragen
-
-        //sonst insert before
-
-        let node_before = get_prev(&node);
-        let node_after =  get_next(&node);
-
-        let new_node = Some(Rc::new(RefCell::new(Node {
-            item: Some(wert),
-            next: Some(node_after),
-            prev: Some(node_before),
-        })));
-
-        set_prev(&node_after, &link_to_weak(&new_node));
-        set_next(&node_before.unwrap().upgrade(), &new_node);
     }
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
     pub fn pop_front(&mut self) -> Option<T> {
         self.head.take().map(|old_head| {
             // Wert entnehmen
-            let old_head_ref = Rc::try_unwrap(old_head).ok().expect("Multiple references").into_inner();
+            let old_head_ref = Rc::try_unwrap(old_head)
+                .ok()
+                .expect("Multiple references")
+                .into_inner();
             let result = old_head_ref.item;
 
             // Nächsten Knoten zum neuen Head machen
@@ -229,53 +233,45 @@ impl<T: Ord> DLList<T> {
     }
 
     pub fn contains(&mut self, element: &T) -> bool {
-
         let mut current = self.head.clone();
-        
-        while let Some(ref curr) = current {
 
+        while let Some(ref curr) = current {
             if curr.borrow().item == *element {
                 return true;
             }
 
             current = get_next(&curr);
-
         }
 
         return false;
     }
 }
 
-pub fn main(){
-
-}
+pub fn main() {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn sort_test() {
         let mut dll = DLList::<i32>::new();
-        
+
         let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
-        
+
         for ele in value_vec {
             dll.push(ele);
         }
 
-        let exp_vec = vec![0,1,6,8,17,35,888];
-
+        let exp_vec = vec![0, 1, 6, 8, 17, 35, 888];
 
         assert_eq!(dll.to_vec(), exp_vec);
-        
-
     }
 
     #[test]
     fn empty_list_function_test() {
         let mut dll = DLList::<i32>::new();
-        
+
         assert_eq!(dll.to_vec(), vec![]);
         assert_eq!(dll.pop_back(), None);
         assert_eq!(dll.pop_front(), None);
@@ -286,11 +282,11 @@ mod tests {
         let mut dll = DLList::<i32>::new();
 
         let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
-        
+
         for ele in value_vec {
             dll.push(ele);
         }
-        
+
         assert_eq!(dll.pop_front(), Some(0));
         assert_eq!(dll.pop_back(), Some(888));
     }
@@ -303,11 +299,11 @@ mod tests {
         assert_eq!(dll.contains(&18), false);
 
         let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
-        
+
         for ele in value_vec {
             dll.push(ele);
         }
-        
+
         //Test bei voller Liste
         assert_eq!(dll.contains(&17), true);
         assert_eq!(dll.contains(&18), false);
@@ -316,14 +312,14 @@ mod tests {
     #[test]
     fn stress_test() {
         let mut dll = DLList::<i32>::new();
-        
-        //Liste mit Werten füllen        
+
+        //Liste mit Werten füllen
         for ele in 0..1000 {
             dll.push(ele);
         }
-        
+
         let expected: Vec<_> = (0..1000).collect();
         assert_eq!(dll.to_vec(), expected);
     }
-
 }
+pub fn main() {}
