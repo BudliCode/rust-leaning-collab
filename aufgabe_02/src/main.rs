@@ -70,6 +70,7 @@ impl<T> Node<T> {
 
 //Struktur für den Kopf- und Endstueck:
 
+//wird gemacht:
 fn get_next<T>(link: &Link<T>) -> Link<T> {
     link.as_ref().unwrap().borrow_mut().next.clone()
 }
@@ -91,8 +92,8 @@ fn set_prev<T>(link: &Link<T>, prev: &WeakLink<T>) {
 }
 
 struct DLList<T> {
-    head: Option<Node<T>>,
-    tail: Option<Node<T>>,
+    head: Option<Link<T>>,
+    tail: Option<Link<T>>,
 }
 
 impl<T: Ord> DLList<T> {
@@ -116,24 +117,32 @@ impl<T: Ord> DLList<T> {
         let node_before = get_prev(&node_after);
     }
 
+    //wir gemacht
     pub fn push(&mut self, wert: T) {
         let new_node = Node::new(wert);
 
-        let mut node: Link<T> = self.head.clone();
+        let mut node = self.head.clone();
 
         while let Some(n) = node {
-            if n.as_ref().get_mut().item >= wert {
+            
+            //if n.as_ref().get_mut().item >= wert {
+            //    break;
+            //}
+
+            if n.as_ref().item >= wert {
                 break;
             }
+
             node = get_next(&node);
         }
 
         let node_before = get_prev(&node);
+        let node_after =  get_next(&node);
 
         let new_node = Some(Rc::new(RefCell::new(Node {
             item: Some(wert),
-            next: node_after.clone(),
-            prev: node_before.clone(),
+            next: Some(node_after),
+            prev: Some(node_before),
         })));
 
         set_prev(&node_after, &link_to_weak(&new_node));
@@ -142,56 +151,82 @@ impl<T: Ord> DLList<T> {
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
     pub fn pop_front(&mut self) -> Option<T> {
-        if self.size > 0 {
-            let to_remove = get_next(&self.head);
-            self.remove(&to_remove);
-            return get_element(&to_remove);
-        }
-        return None;
+        self.head.take().map(|old_head| {
+            // Wert entnehmen
+            let old_head_ref = Rc::try_unwrap(old_head).ok().expect("Multiple references").into_inner();
+            let result = old_head_ref.item;
+
+            // Nächsten Knoten zum neuen Head machen
+            if let Some(next_node) = old_head_ref.next {
+                // prev des neuen Heads auf None setzen
+                next_node.borrow_mut().prev = None;
+                self.head = Some(next_node);
+            } else {
+                // Liste wird leer
+                self.tail = None;
+            }
+
+            result
+        })
     }
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
     pub fn pop_back(&mut self) -> Option<T> {
-        if self.size > 0 {
-            let to_remove = get_prev(&self.tail).as_ref().unwrap().upgrade();
-            self.remove(&to_remove);
-            return get_element(&to_remove);
-        }
-        return None;
+        self.tail.take().map(|old_tail_rc| {
+            let old_tail = Rc::try_unwrap(old_tail_rc)
+                .ok()
+                .expect("Tail still has other references")
+                .into_inner();
+            let result = old_tail.item;
+
+            if let Some(prev_weak) = old_tail.prev {
+                if let Some(prev_rc) = prev_weak.upgrade() {
+                    // Trenne die Verbindung zum alten Tail
+                    prev_rc.borrow_mut().next = None;
+                    self.tail = Some(prev_rc);
+                }
+            } else {
+                // Liste wird leer
+                self.head = None;
+            }
+
+            result
+        })
     }
 
     pub fn to_vec(&self) -> Vec<T> {
         let mut out_vec: Vec<T> = Vec::new();
-        let mut current = get_next(&self.head);
+        let mut current = self.head;
 
         while let Some(curr_rc) = current {
-            if let Some(val) = peek_element(&Some(curr_rc.clone())) {
+            if let Some(val) = self.pop_front() {
                 out_vec.push(val);
             }
-            current = get_next(&Some(curr_rc));
+            current = Some(get_next(&Some(curr_rc)));
         }
 
         out_vec
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use crate::DLList;
+    pub fn contains(&mut self, element: &T) -> bool {
 
-    #[test]
-    fn sorting_test() {
-        let mut list = DLList::new();
+        let mut current = self.head.clone();
+        
+        while let Some(ref curr) = current {
 
-        list.push(7);
-        list.push(18);
-        list.push(1);
-        list.push(0);
-        list.push(7);
+            if curr.borrow().item == *element {
+                return true;
+            }
 
-        let expt_out = vec![0, 1, 7, 7, 18];
-        print!("{:?}", list.to_vec());
+            current = Some(get_next(curr));
 
-        assert_eq!(list.to_vec(), expt_out);
+        }
+
+        return false;
     }
 }
+
+pub fn main(){
+
+}
+
