@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::clone;
 use std::rc::{Rc, Weak};
 
 /*Option
@@ -172,18 +173,44 @@ impl<T: Ord> DLList<T> {
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
     pub fn pop_front(&mut self) -> Option<T> {
-        match self.head {
+        
+        //Wenn die Liste leer ist, wird "none" zurückgegeben:
+        if self.head.is_none() {
+            return None;
+        }
+
+        //aktuellen Head übetragen und nächsten Knoten holen 
+        let old_head = self.head.clone().unwrap();
+        let next = get_next(&old_head);
+       
+
+        //Wenn du nächste Konten leer ist, dann ist die Liste komplett leer und
+        //head und Tail werden auf none gesetzt, wenn nicht wird der prev von der
+        //nächsten Node gesetzt und der head auf den neuen Head gesetzt.
+        match next {
             None => {
-                todo!("Option None return")
+                self.head = None;
+                self.tail = None;
             }
-            Some(head) => {
-                todo!("head auf next von head setzten")
-                todo!("prev von neuem Head auf None setzen")
-                todo!("Item aus altem head zurück geben")
+            Some(ref next_node) => {
+                set_prev(next_node, None);
+                self.head = Some(next_node.clone());
             }
         };
 
-        self.head.take().map(|old_head| {
+        //den Wert des alten Head ausgeben:
+        match Rc::try_unwrap(old_head) {
+            Ok(node_cell) => {
+                let node = node_cell.into_inner();
+                Some(node.item)
+            }
+            Err(_) => {
+                None
+            }
+            
+        }
+
+        /* self.head.take().map(|old_head| {
             // Wert entnehmen
             let old_head_ref = Rc::try_unwrap(old_head)
                 .ok()
@@ -202,43 +229,54 @@ impl<T: Ord> DLList<T> {
             }
 
             result
-        })
+        })*/
+        
     }
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
     pub fn pop_back(&mut self) -> Option<T> {
-        match self.tail {
-            None => {
-                todo!("pop_front")
-            }
-            Some(tail) => {
-                todo!("tail auf prev von tail setzten, wenn prev != head, sonst tail = None")
-                todo!("next von neuem tail auf None setzen")
-                todo!("Item aus altem tail zurück geben")
-            }
-        };
-
-        self.tail.take().map(|old_tail_rc| {
-            let old_tail = Rc::try_unwrap(old_tail_rc)
-                .ok()
-                .expect("Tail still has other references")
-                .into_inner();
-            let result = old_tail.item;
-
-            if let Some(prev_weak) = old_tail.prev {
-                if let Some(prev_rc) = prev_weak.upgrade() {
-                    // Trenne die Verbindung zum alten Tail
-                    prev_rc.borrow_mut().next = None;
-                    self.tail = Some(prev_rc);
-                }
-            } else {
-                // Liste wird leer
-                self.head = None;
-            }
-
-            result
-        })
+    // Wenn die Liste leer ist, wird "None" zurückgegeben
+    if self.tail.is_none() {
+        return None;
     }
+
+    // aktuellen Tail referenzieren und vorherigen Knoten holen
+    let mut old_tail = self.tail.clone().unwrap();
+    let prev = get_prev(&old_tail);
+
+    // Wenn der vorherige Knoten leer ist, war das Element das einzige in der Liste
+    // -> head und tail werden auf None gesetzt
+    // Wenn nicht, dann wird der next-Zeiger des vorigen Knotens auf None gesetzt,
+    // und der tail entsprechend aktualisiert
+    match prev {
+        None => {
+            self.head = None;
+            self.tail = None;
+        }
+        Some(ref prev_node) => {
+            if let Some(prev_strong) = prev_node.upgrade() {
+            set_next(&prev_strong, None);
+            self.tail = Some(prev_strong);
+}
+
+        }
+    };
+
+    // den Wert des alten Tails ausgeben
+    match Rc::try_unwrap(old_tail) {
+        Ok(node_cell) => {
+            let nodeS = node_cell.into_inner();
+            Some(node.item)
+        }
+        Err(rc) => {
+            // Wenn noch andere Referenzen existieren, extrahieren wir trotzdem den Wert
+            let node_ref = rc.borrow();
+            //Some(node_ref.item.clone()) // T: Clone nötig
+            Some(node_ref.item)
+        }
+    }
+}
+
 
     pub fn to_vec(&mut self) -> Vec<T> {
         let mut out_vec: Vec<T> = Vec::new();
