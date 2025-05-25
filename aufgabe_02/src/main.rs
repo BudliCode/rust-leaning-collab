@@ -172,6 +172,17 @@ impl<T: Ord> DLList<T> {
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
     pub fn pop_front(&mut self) -> Option<T> {
+        match self.head {
+            None => {
+                todo!("Option None return")
+            }
+            Some(head) => {
+                todo!("head auf next von head setzten")
+                todo!("prev von neuem Head auf None setzen")
+                todo!("Item aus altem head zurück geben")
+            }
+        };
+
         self.head.take().map(|old_head| {
             // Wert entnehmen
             let old_head_ref = Rc::try_unwrap(old_head)
@@ -196,6 +207,17 @@ impl<T: Ord> DLList<T> {
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
     pub fn pop_back(&mut self) -> Option<T> {
+        match self.tail {
+            None => {
+                todo!("pop_front")
+            }
+            Some(tail) => {
+                todo!("tail auf prev von tail setzten, wenn prev != head, sonst tail = None")
+                todo!("next von neuem tail auf None setzen")
+                todo!("Item aus altem tail zurück geben")
+            }
+        };
+
         self.tail.take().map(|old_tail_rc| {
             let old_tail = Rc::try_unwrap(old_tail_rc)
                 .ok()
