@@ -265,12 +265,30 @@ impl<T: Ord> DLList<T> {
     }
 }
 
-struct DLList_drop<T> {
-    head: Option<Link<T>>,
-    tail: Option<Link<T>>,
+type DropLink<T> = Rc<RefCell<DropNode<T>>>;
+
+struct DropNode<T> {
+    item: T,
+    next: Option<DropLink<T>>,
+    prev: Option<DropLink<T>>,
 }
 
-impl<T> Drop for DLList_drop<T> {
+impl<T> DropNode<T> {
+    fn new(item: T) -> Self {
+        Self {
+            item,
+            next: None,
+            prev: None,
+        }
+    }
+}
+
+struct DLListDrop<T> {
+    head: Option<DropLink<T>>,
+    tail: Option<DropLink<T>>,
+}
+
+impl<T> Drop for DLListDrop<T> {
     fn drop(&mut self) {
         while let Some(node) = self.head.take() {
             let _ = node.borrow_mut().prev.take();
@@ -280,7 +298,7 @@ impl<T> Drop for DLList_drop<T> {
     }
 }
 
-impl<T: Ord> DLList_drop<T> {
+impl<T: Ord> DLListDrop<T> {
     //Erstellen eine DLL mit Head und Tail
     pub fn new() -> Self {
         Self {
@@ -289,19 +307,135 @@ impl<T: Ord> DLList_drop<T> {
         }
     }
     pub fn push(&mut self, wert: T) {
-        todo!("");
+        let mut node = self.head.clone();
+
+        while let Some(ref n) = node.clone() {
+            if n.as_ref().borrow().item >= wert {
+                break;
+            }
+            node = n.borrow().next.clone();
+        }
+
+        let new_node = Rc::new(RefCell::new(DropNode::new(wert)));
+        let new_node_opt = Some(new_node.clone());
+
+        //Node is None -> am ende einfügen
+
+        match node.clone() {
+            None => {
+                match self.tail.clone() {
+                    // Liste ist Leer
+                    None => {
+                        self.head = new_node_opt.clone();
+                        self.tail = new_node_opt;
+                    }
+                    Some(tail_node) => {
+                        // am Ende einfügen
+                        tail_node.borrow_mut().next = new_node_opt.clone();
+                        new_node.borrow_mut().prev = self.tail.clone();
+                        self.tail = new_node_opt;
+                    }
+                };
+            }
+            Some(node_after) => {
+                match node_after.borrow().prev.clone() {
+                    //Insert at beginning
+                    None => {
+                        node_after.borrow_mut().prev = new_node_opt.clone();
+                        new_node.borrow_mut().next = Some(node_after.clone());
+                        self.head = new_node_opt.clone();
+                    }
+
+                    //Insert between two nodes
+                    Some(node_before) => {
+                        node_after.borrow_mut().prev = new_node_opt.clone();
+                        node_before.borrow_mut().next = new_node_opt.clone();
+
+                        new_node.borrow_mut().prev = Some(node_before);
+                        new_node.borrow_mut().next = node;
+                    }
+                };
+            }
+        }
     }
     pub fn pop_front(&mut self) -> Option<T> {
-        todo!("");
+        //Wenn die Liste leer ist, wird "none" zurückgegeben:
+        if self.head.is_none() {
+            return None;
+        }
+
+        //aktuellen Head übetragen und nächsten Knoten holen
+        let old_head = self.head.take().unwrap();
+        let next = old_head.borrow().next.clone();
+
+        //Wenn du nächste Konten leer ist, dann ist die Liste komplett leer und
+        //head und Tail werden auf none gesetzt, wenn nicht wird der prev von der
+        //nächsten Node gesetzt und der head auf den neuen Head gesetzt.
+        match next {
+            None => {
+                self.head = None;
+                self.tail = None;
+            }
+            Some(next_node) => {
+                next_node.borrow_mut().prev = None;
+                self.head = Some(next_node);
+            }
+        };
+
+        //den Wert des alten Head ausgeben:
+        Some(Rc::try_unwrap(old_head).ok().unwrap().into_inner().item)
     }
     pub fn pop_back(&mut self) -> Option<T> {
-        todo!("");
+        // Wenn die Liste leer ist, wird "None" zurückgegeben
+        if self.tail.is_none() {
+            return None;
+        }
+
+        // aktuellen Tail referenzieren und vorherigen Knoten holen
+        let old_tail = self.tail.take().unwrap();
+        let prev = old_tail.borrow().prev.clone();
+
+        // Wenn der vorherige Knoten leer ist, war das Element das einzige in der Liste
+        // -> head und tail werden auf None gesetzt
+        // Wenn nicht, dann wird der next-Zeiger des vorigen Knotens auf None gesetzt,
+        // und der tail entsprechend aktualisiert
+
+        match prev {
+            None => {
+                self.head = None;
+                self.tail = None;
+            }
+            Some(prev_node) => {
+                prev_node.borrow_mut().next = None;
+                self.tail = Some(prev_node);
+            }
+        };
+
+        // den Wert des alten Tails ausgeben
+        Some(Rc::try_unwrap(old_tail).ok().unwrap().into_inner().item)
     }
     pub fn to_vec(&mut self) -> Vec<T> {
-        todo!("");
+        let mut out_vec: Vec<T> = Vec::new();
+
+        while let Some(val) = self.pop_front() {
+            out_vec.push(val);
+        }
+
+        out_vec
     }
+
     pub fn contains(&mut self, element: &T) -> bool {
-        todo!("");
+        let mut current = self.head.clone();
+
+        while let Some(ref curr) = current.clone() {
+            if curr.borrow_mut().item == *element {
+                return true;
+            }
+
+            current = curr.borrow().next.clone();
+        }
+
+        return false;
     }
 }
 
