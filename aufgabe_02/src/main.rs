@@ -338,7 +338,14 @@ impl<T: Ord> DLListDrop<T> {
                 };
             }
             Some(node_after) => {
-                match node_after.borrow().prev.clone() {
+
+                /*
+                Hier gab es ein Panik, weil der  die node_after danach mehrfach referenziert wird, aber der mut noch im scope war.
+                durch das let ... wird der Scope beendert und der borrwo_mut kann auf die node_after zugreifen.
+                 */
+                let maybe_node_after = node_after.borrow().prev.clone();
+
+                match  maybe_node_after{
                     //Insert at beginning
                     None => {
                         node_after.borrow_mut().prev = new_node_opt.clone();
@@ -423,6 +430,7 @@ impl<T: Ord> DLListDrop<T> {
 
         out_vec
     }
+    
 
     pub fn contains(&mut self, element: &T) -> bool {
         let mut current = self.head.clone();
@@ -445,8 +453,10 @@ pub fn main() {}
 mod tests {
     use super::*;
 
+//Weak tests:
+
     #[test]
-    fn sort_test() {
+    fn sort_test_weak() {
         let mut dll = DLList::<i32>::new();
 
         let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
@@ -461,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_list_function_test() {
+    fn empty_list_function_test_weak() {
         let mut dll = DLList::<i32>::new();
 
         assert_eq!(dll.to_vec(), vec![]);
@@ -470,7 +480,7 @@ mod tests {
     }
 
     #[test]
-    fn pop_front_pop_back() {
+    fn pop_front_pop_back_weak() {
         let mut dll = DLList::<i32>::new();
 
         let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
@@ -486,7 +496,7 @@ mod tests {
     }
 
     #[test]
-    fn contains() {
+    fn contains_test_weak() {
         let mut dll = DLList::<i32>::new();
 
         //Test bei Leerer Liste
@@ -504,7 +514,7 @@ mod tests {
     }
 
     #[test]
-    fn stress_test() {
+    fn stress_test_weak() {
         let mut dll = DLList::<i32>::new();
 
         //Liste mit Werten füllen
@@ -515,4 +525,98 @@ mod tests {
         let expected: Vec<_> = (0..1000).collect();
         assert_eq!(dll.to_vec(), expected);
     }
+
+    #[test]
+    fn memory_leak_weak() {
+        let mut list = DLList::<i32>::new();
+        list.push(10);
+        list.push(20);
+        list.push(30);
+
+        // Zugriff auf Knoten für Überwachung
+        let second_node = list.head.as_ref().unwrap().borrow().next.as_ref().unwrap().clone();
+        let weak_second = Rc::downgrade(&second_node);
+
+        assert_eq!(Rc::strong_count(&second_node), 1);
+        assert_eq!(Rc::weak_count(&second_node), 1); // durch prev
+
+        // Entferne manuell alle Verbindungen (simuliert clear/drop)
+        drop(list); // falls du eine eigene clear() hast
+
+        // Sollte jetzt kein Upgrade mehr möglich sein
+        assert!(weak_second.upgrade().is_none());
+    }
+
+//Drop Test:
+    #[test]
+    fn sort_test_drop() {
+        let mut dll = DLListDrop::<i32>::new();
+
+        let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
+
+        for ele in value_vec {
+            dll.push(ele);
+        }
+
+        let exp_vec = vec![0, 1, 6, 8, 17, 35, 888];
+
+        assert_eq!(dll.to_vec(), exp_vec);
+    }
+
+    #[test]
+    fn empty_list_function_test_drop() {
+        let mut dll = DLListDrop::<i32>::new();
+
+        assert_eq!(dll.to_vec(), vec![]);
+        assert_eq!(dll.pop_back(), None);
+        assert_eq!(dll.pop_front(), None);
+    }
+
+    #[test]
+    fn pop_front_pop_back_drop() {
+        let mut dll = DLListDrop::<i32>::new();
+
+        let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
+
+        for ele in value_vec {
+            dll.push(ele);
+        }
+
+        assert_eq!(dll.pop_front(), Some(0));
+        assert_eq!(dll.pop_back(), Some(888));
+        assert_eq!(dll.pop_back(), Some(35));
+        assert_eq!(dll.pop_front(), Some(1));
+    }
+
+    #[test]
+    fn contains_test_drop() {
+        let mut dll = DLListDrop::<i32>::new();
+
+        //Test bei Leerer Liste
+        assert_eq!(dll.contains(&18), false);
+
+        let value_vec = vec![8, 6, 17, 35, 888, 1, 0];
+
+        for ele in value_vec {
+            dll.push(ele);
+        }
+
+        //Test bei voller Liste
+        assert_eq!(dll.contains(&17), true);
+        assert_eq!(dll.contains(&18), false);
+    }
+
+    #[test]
+    fn stress_test_drop() {
+        let mut dll = DLListDrop::<i32>::new();
+
+        //Liste mit Werten füllen
+        for ele in 0..1000 {
+            dll.push(ele);
+        }
+
+        let expected: Vec<_> = (0..1000).collect();
+        assert_eq!(dll.to_vec(), expected);
+    }
+
 }
