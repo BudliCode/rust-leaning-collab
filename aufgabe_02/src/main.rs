@@ -125,26 +125,17 @@ impl<T: Ord> DLList<T> {
 
         match node.clone() {
             None => {
-                match self.head.clone() {
+                match self.tail.clone() {
                     // Liste ist Leer
                     None => {
-                        self.head = new_node_opt;
+                        self.head = new_node_opt.clone();
+                        self.tail = new_node_opt;
                     }
-                    Some(head_node) => {
-                        match self.tail.clone() {
-                            // Liste länge 1
-                            None => {
-                                self.tail = new_node_opt;
-                                set_next(&head_node, self.tail.clone());
-                                set_prev(&new_node, Some(Rc::downgrade(&head_node)));
-                            }
-                            // am Ende einfügen
-                            Some(tail_node) => {
-                                set_next(&tail_node, new_node_opt.clone());
-                                set_prev(&new_node, to_weak(&self.tail));
-                                self.tail = new_node_opt.clone();
-                            }
-                        };
+                    Some(tail_node) => {
+                        // am Ende einfügen
+                        set_next(&tail_node, new_node_opt.clone());
+                        set_prev(&new_node, to_weak(&self.tail));
+                        self.tail = new_node_opt;
                     }
                 };
             }
@@ -173,16 +164,15 @@ impl<T: Ord> DLList<T> {
 
     //Funktion zum entfernen des ersten Elements (Linkes Element):
     pub fn pop_front(&mut self) -> Option<T> {
-        
         //Wenn die Liste leer ist, wird "none" zurückgegeben:
         if self.head.is_none() {
             return None;
         }
 
-        //aktuellen Head übetragen und nächsten Knoten holen 
-        let old_head = self.head.clone().unwrap();
+        //aktuellen Head übetragen und nächsten Knoten holen
+        let old_head = self.head.take().unwrap();
         let next = get_next(&old_head);
-       
+        set_next(&old_head, None);
 
         //Wenn du nächste Konten leer ist, dann ist die Liste komplett leer und
         //head und Tail werden auf none gesetzt, wenn nicht wird der prev von der
@@ -192,101 +182,69 @@ impl<T: Ord> DLList<T> {
                 self.head = None;
                 self.tail = None;
             }
-            Some(ref next_node) => {
-                set_prev(next_node, None);
-                self.head = Some(next_node.clone());
+            Some(next_node) => {
+                set_prev(&next_node, None);
+                self.head = Some(next_node);
             }
         };
 
         //den Wert des alten Head ausgeben:
-        match Rc::try_unwrap(old_head) {
-            Ok(node_cell) => {
-                let node = node_cell.into_inner();
-                Some(node.item)
-            }
-            Err(_) => {
-                None
-            }
-            
-        }
-
-        /* self.head.take().map(|old_head| {
-            // Wert entnehmen
-            let old_head_ref = Rc::try_unwrap(old_head)
-                .ok()
-                .expect("Multiple references")
-                .into_inner();
-            let result = old_head_ref.item;
-
-            // Nächsten Knoten zum neuen Head machen
-            if let Some(next_node) = old_head_ref.next {
-                // prev des neuen Heads auf None setzen
-                next_node.borrow_mut().prev = None;
-                self.head = Some(next_node);
-            } else {
-                // Liste wird leer
-                self.tail = None;
-            }
-
-            result
-        })*/
-        
+        Some(Rc::try_unwrap(old_head).ok().unwrap().into_inner().item)
     }
 
     //Funktion zum entfernen des letzten Elements (Rechtes Element):
     pub fn pop_back(&mut self) -> Option<T> {
-    // Wenn die Liste leer ist, wird "None" zurückgegeben
-    if self.tail.is_none() {
-        return None;
+        // Wenn die Liste leer ist, wird "None" zurückgegeben
+        if self.tail.is_none() {
+            return None;
+        }
+
+        // aktuellen Tail referenzieren und vorherigen Knoten holen
+        let old_tail = self.tail.take().unwrap();
+        let prev = get_prev(&old_tail);
+        set_prev(&old_tail, None);
+
+        // Wenn der vorherige Knoten leer ist, war das Element das einzige in der Liste
+        // -> head und tail werden auf None gesetzt
+        // Wenn nicht, dann wird der next-Zeiger des vorigen Knotens auf None gesetzt,
+        // und der tail entsprechend aktualisiert
+
+        match prev {
+            None => {
+                self.head = None;
+                self.tail = None;
+            }
+            Some(prev_node) => {
+                if let Some(prev_strong) = prev_node.upgrade() {
+                    set_next(&prev_strong, None);
+                    self.tail = Some(prev_strong);
+                }
+            }
+        };
+
+        // den Wert des alten Tails ausgeben
+        Some(Rc::try_unwrap(old_tail).ok().unwrap().into_inner().item)
+        /*
+                match Rc::try_unwrap(old_tail) {
+                    Ok(node_cell) => {
+                        let nodeS = node_cell.into_inner();
+                        Some(nodeS.item)
+                    }
+                    Err(rc) => {
+                        // Wenn noch andere Referenzen existieren, extrahieren wir trotzdem den Wert
+                        let node_ref = rc.borrow();
+                        //Some(node_ref.item.clone()) // T: Clone nötig
+                        Some(node_ref.item)
+                    }
+                }
+        */
     }
-
-    // aktuellen Tail referenzieren und vorherigen Knoten holen
-    let mut old_tail = self.tail.clone().unwrap();
-    let prev = get_prev(&old_tail);
-
-    // Wenn der vorherige Knoten leer ist, war das Element das einzige in der Liste
-    // -> head und tail werden auf None gesetzt
-    // Wenn nicht, dann wird der next-Zeiger des vorigen Knotens auf None gesetzt,
-    // und der tail entsprechend aktualisiert
-    match prev {
-        None => {
-            self.head = None;
-            self.tail = None;
-        }
-        Some(ref prev_node) => {
-            if let Some(prev_strong) = prev_node.upgrade() {
-            set_next(&prev_strong, None);
-            self.tail = Some(prev_strong);
-}
-
-        }
-    };
-
-    // den Wert des alten Tails ausgeben
-    match Rc::try_unwrap(old_tail) {
-        Ok(node_cell) => {
-            let nodeS = node_cell.into_inner();
-            Some(node.item)
-        }
-        Err(rc) => {
-            // Wenn noch andere Referenzen existieren, extrahieren wir trotzdem den Wert
-            let node_ref = rc.borrow();
-            //Some(node_ref.item.clone()) // T: Clone nötig
-            Some(node_ref.item)
-        }
-    }
-}
-
 
     pub fn to_vec(&mut self) -> Vec<T> {
         let mut out_vec: Vec<T> = Vec::new();
-        let mut current = self.head.clone();
 
-        while let Some(curr_rc) = current {
-            if let Some(val) = self.pop_front() {
-                out_vec.push(val);
-            }
-            current = get_next(&curr_rc);
+        while let Some(val) = self.pop_front() {
+            out_vec.push(val);
         }
 
         out_vec
@@ -304,6 +262,46 @@ impl<T: Ord> DLList<T> {
         }
 
         return false;
+    }
+}
+
+struct DLList_drop<T> {
+    head: Option<Link<T>>,
+    tail: Option<Link<T>>,
+}
+
+impl<T> Drop for DLList_drop<T> {
+    fn drop(&mut self) {
+        while let Some(node) = self.head.take() {
+            let _ = node.borrow_mut().prev.take();
+            self.head = node.borrow_mut().next.take();
+        }
+        self.tail.take();
+    }
+}
+
+impl<T: Ord> DLList_drop<T> {
+    //Erstellen eine DLL mit Head und Tail
+    pub fn new() -> Self {
+        Self {
+            head: None,
+            tail: None,
+        }
+    }
+    pub fn push(&mut self, wert: T) {
+        todo!("");
+    }
+    pub fn pop_front(&mut self) -> Option<T> {
+        todo!("");
+    }
+    pub fn pop_back(&mut self) -> Option<T> {
+        todo!("");
+    }
+    pub fn to_vec(&mut self) -> Vec<T> {
+        todo!("");
+    }
+    pub fn contains(&mut self, element: &T) -> bool {
+        todo!("");
     }
 }
 
@@ -349,6 +347,8 @@ mod tests {
 
         assert_eq!(dll.pop_front(), Some(0));
         assert_eq!(dll.pop_back(), Some(888));
+        assert_eq!(dll.pop_back(), Some(35));
+        assert_eq!(dll.pop_front(), Some(1));
     }
 
     #[test]
