@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::clone;
 use std::rc::{Rc, Weak};
 
 /*Option
@@ -537,10 +536,11 @@ mod tests {
         let second_node = list.head.as_ref().unwrap().borrow().next.as_ref().unwrap().clone();
         let weak_second = Rc::downgrade(&second_node);
 
-        assert_eq!(Rc::strong_count(&second_node), 1);
-        assert_eq!(Rc::weak_count(&second_node), 1); // durch prev
+        assert_eq!(Rc::strong_count(&second_node), 2);
+        assert_eq!(Rc::weak_count(&second_node), 2); // durch prev
 
         // Entferne manuell alle Verbindungen (simuliert clear/drop)
+        drop(second_node);
         drop(list); // falls du eine eigene clear() hast
 
         // Sollte jetzt kein Upgrade mehr möglich sein
@@ -617,6 +617,28 @@ mod tests {
 
         let expected: Vec<_> = (0..1000).collect();
         assert_eq!(dll.to_vec(), expected);
+    }
+
+    #[test]
+    fn memory_leak_drop() {
+        let mut list = DLList::<i32>::new();
+        list.push(10);
+        list.push(20);
+        list.push(30);
+
+        // Zugriff auf Knoten für Überwachung
+        let second_node = list.head.as_ref().unwrap().borrow().next.as_ref().unwrap().clone();
+        //let weak_second = Rc::downgrade(&second_node);
+
+        assert_eq!(Rc::strong_count(&second_node), 2);
+        //assert_eq!(Rc::weak_count(&second_node), 2); // durch prev
+
+        // Entferne manuell alle Verbindungen (simuliert clear/drop)
+        drop(second_node);
+        drop(list); // falls du eine eigene clear() hast
+
+        // Sollte jetzt kein Upgrade mehr möglich sein
+        //assert!(weak_second.upgrade().is_none());
     }
 
 }
